@@ -13,7 +13,7 @@ export class AuthService {
   async exchangeToken(token: string) {
     const { data } = await firstValueFrom(
       this.httpService.get<any>(
-        process.env.REMOTE_AUTH_API_ENDPOINT,
+        process.env.JARVIS_KIT_REMOTE_AUTH_API_ENDPOINT,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -32,7 +32,7 @@ export class AuthService {
 
   async verifyToken(token: string) {
     try {
-      return jwt.verify(token, process.env.JWT_SECRET);
+      return jwt.verify(token, process.env.JARVIS_KIT_JWT_SECRET);
     } catch (error) {
       throw new UnauthorizedException('Invalid token');
     }
@@ -60,6 +60,6 @@ export class AuthService {
 
 
   async generateToken(payload: any, expiresIn: string) {
-    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
+    return jwt.sign(payload, process.env.JARVIS_KIT_JWT_SECRET, { expiresIn });
   }
 }

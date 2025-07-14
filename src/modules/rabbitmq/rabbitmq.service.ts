@@ -20,7 +20,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
 
   private async connect() {
     try {
-      const rabbitmqUrl = process.env.RABBITMQ_CONNECTION_STRING;
+      const rabbitmqUrl = process.env.JARVIS_KIT_RABBITMQ_URI;
       this.logger.log('Connecting to RabbitMQ...');
       
       this.connection = await amqp.connect(rabbitmqUrl);
