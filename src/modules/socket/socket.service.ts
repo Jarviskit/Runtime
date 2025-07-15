@@ -4,6 +4,7 @@ import { AGUIEvent } from "./interfaces";
 import { Server } from "socket.io";
 import { EventType } from '@ag-ui/core'
 import { RedisService } from "@liaoliaots/nestjs-redis";
+import { AGUIEventQueueService } from "./agui-event-queue.service";
 
 @Injectable()
 export class SocketService {
@@ -11,10 +12,32 @@ export class SocketService {
   
   constructor(
     private readonly threadService: ThreadService,
-    private readonly redisService: RedisService
+    private readonly redisService: RedisService,
+    private readonly aguiEventQueueService: AGUIEventQueueService,
   ) {}
 
+  /**
+   * Handle AGUI event by queuing it for sequential processing
+   */
   async handleAGUIEvent(payload: AGUIEvent, server: Server) {
+    try {
+      this.logger.log(`Received AGUI event for thread ${payload.threadId}, session ${payload.sessionId}, order ${payload.order}, type ${payload.event.type}`);
+      
+      // Queue the event for sequential processing
+      await this.aguiEventQueueService.queueAGUIEvent(payload, server);
+      
+      this.logger.log(`Queued AGUI event for thread ${payload.threadId}, session ${payload.sessionId}, order ${payload.order}`);
+    } catch (error) {
+      this.logger.error(`Error queuing AGUI event: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Legacy method - now deprecated in favor of queue-based processing
+   * @deprecated Use AGUIEventQueueService.queueAGUIEvent instead
+   */
+  async handleAGUIEventDirectly(payload: AGUIEvent, server: Server) {
     console.log(`[${payload.threadId} - ${payload.sessionId} - ${payload.event.messageId} -> ${payload.event.type}] ${payload.event.delta || ''}`);
     const event = { order: payload.order, ...payload.event };
 

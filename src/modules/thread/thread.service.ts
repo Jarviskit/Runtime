@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException, BadRequestException, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Thread } from "src/entities/thread.entity";
 import { Repository } from "typeorm";
@@ -11,7 +11,7 @@ import { PaginatedQuery } from "src/shared/dto";
 import { ThreadMode } from "src/shared/enum";
 import { FindThreadDto } from "./dtos/find-thread.dto";
 import { RabbitMQService } from "../rabbitmq/rabbitmq.service";
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { RedisService } from "@liaoliaots/nestjs-redis";
 import { AGUIEvent } from "../socket/interfaces";
 import { EventType } from "@ag-ui/core";
@@ -22,6 +22,8 @@ import { UpdateThreadDto } from "./dtos/update-thread.dto";
 
 @Injectable()
 export class ThreadService {
+  private readonly logger = new Logger(ThreadService.name);
+  
   constructor(
     @InjectRepository(Thread) private threadRepository: Repository<Thread>,
     @InjectRepository(Message) private messageRepository: Repository<Message>,
@@ -314,5 +316,110 @@ export class ThreadService {
     message.updatedAt = new Date();
 
     await this.messageRepository.save(message);
+  }
+
+  /**
+   * Handle AGUI event processing (moved from SocketService)
+   */
+  @OnEvent('agui.event.process')
+  async handleAGUIEventProcessing(payload: AGUIEvent) {
+    const { threadId, sessionId, event } = payload;
+
+    try {
+      switch (event.type) {
+        case EventType.RUN_STARTED:
+          await this.handleRunStarted(threadId, sessionId);
+          break;
+
+        case EventType.RUN_FINISHED:
+          await this.handleRunFinished(threadId, sessionId);
+          break;
+
+        case EventType.RUN_ERROR:
+          await this.handleRunError(threadId, sessionId);
+          break;
+
+        case EventType.TEXT_MESSAGE_START:
+          await this.handleTextMessageStart(threadId, sessionId, event.messageId);
+          break;
+
+        case EventType.TEXT_MESSAGE_END:
+          await this.handleTextMessageEnd(payload);
+          break;
+
+        case EventType.TOOL_CALL_START:
+          await this.handleToolCallStart(payload);
+          break;
+
+        case EventType.TOOL_CALL_RESULT:
+          await this.handleToolCallResult(payload);
+          break;
+
+        default:
+          this.logger.warn(`Unhandled AGUI event type: ${event.type}`);
+          break;
+      }
+    } catch (error) {
+      this.logger.error(`Error processing AGUI event ${event.type} for thread ${threadId}: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle RUN_STARTED event
+   */
+  private async handleRunStarted(threadId: string, sessionId: string): Promise<void> {
+    await this.updateThread(threadId, { currentSessionId: sessionId });
+  }
+
+  /**
+   * Handle RUN_FINISHED event
+   */
+  private async handleRunFinished(threadId: string, sessionId: string): Promise<void> {
+    const redis = this.redisService.getOrThrow();
+    await Promise.all([
+      redis.del(`thread:${threadId}:${sessionId}`),
+      this.updateThread(threadId, { currentSessionId: null, isLocked: false }),
+    ]);
+  }
+
+  /**
+   * Handle RUN_ERROR event
+   */
+  private async handleRunError(threadId: string, sessionId: string): Promise<void> {
+    // TODO: add new error log to the thread for debugging
+    const redis = this.redisService.getOrThrow();
+    await Promise.all([
+      redis.del(`thread:${threadId}:${sessionId}`),
+      this.updateThread(threadId, { currentSessionId: null, isLocked: false }),
+    ]);
+  }
+
+  /**
+   * Handle TEXT_MESSAGE_START event
+   */
+  private async handleTextMessageStart(threadId: string, sessionId: string, messageId: string): Promise<void> {
+    await this.createEmptyAgentMessage(threadId, sessionId, messageId);
+  }
+
+  /**
+   * Handle TEXT_MESSAGE_END event
+   */
+  private async handleTextMessageEnd(payload: AGUIEvent): Promise<void> {
+    await this.updateAgentMessage(payload);
+  }
+
+  /**
+   * Handle TOOL_CALL_START event
+   */
+  private async handleToolCallStart(payload: AGUIEvent): Promise<void> {
+    await this.updateAgentMessageWithToolCall(payload);
+  }
+
+  /**
+   * Handle TOOL_CALL_RESULT event
+   */
+  private async handleToolCallResult(payload: AGUIEvent): Promise<void> {
+    await this.updateAgentMessageWithToolCall(payload);
   }
 }

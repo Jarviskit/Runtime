@@ -1,15 +1,28 @@
-import { Module } from "@nestjs/common";
-import { SocketGateway } from "./socket.gateway";
-import { ThreadModule } from "../thread/thread.module";
-import { EventEmitterModule } from "@nestjs/event-emitter";
-import { SocketService } from "./socket.service";
+import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
+import { SocketGateway } from './socket.gateway';
+import { SocketService } from './socket.service';
+import { ThreadModule } from '../thread/thread.module';
+import { RabbitMQModule } from '../rabbitmq/rabbitmq.module';
+import { AGUIEventQueueService } from './agui-event-queue.service';
+import { AGUIEventMonitorService } from './agui-event-monitor.service';
 
 @Module({
   imports: [
-    ThreadModule,
-    EventEmitterModule.forRoot()
+    ThreadModule, 
+    RabbitMQModule,
+    ScheduleModule.forRoot(),
   ],
-  providers: [SocketGateway, SocketService],
-  exports: [SocketGateway],
+  providers: [
+    SocketGateway, 
+    SocketService, 
+    AGUIEventQueueService,
+    AGUIEventMonitorService,
+  ],
+  exports: [
+    SocketService, 
+    AGUIEventQueueService,
+    AGUIEventMonitorService,
+  ],
 })
 export class SocketModule {}
