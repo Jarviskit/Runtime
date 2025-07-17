@@ -3,7 +3,7 @@ import { ThreadEventType } from '../interfaces/thread-event.interface';
 
 /**
  * Example usage of the JetStream Thread Event System
- * 
+ *
  * This example demonstrates how to publish events that will be processed
  * sequentially by the WorkerFactory system.
  */
@@ -34,11 +34,13 @@ export class JetStreamUsageExample {
       },
     });
 
-    console.log(`Published RUN_STARTED event for thread ${threadId}, run ${runId}`);
+    console.log(
+      `Published RUN_STARTED event for thread ${threadId}, run ${runId}`,
+    );
 
     // 2. Simulate progress updates
     for (let i = 1; i <= 5; i++) {
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second
 
       await this.jetStreamService.publishThreadEvent(threadId, {
         type: ThreadEventType.RUN_PROGRESS,
@@ -56,7 +58,7 @@ export class JetStreamUsageExample {
     }
 
     // 3. Simulate completion
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     await this.jetStreamService.publishThreadEvent(threadId, {
       type: ThreadEventType.RUN_COMPLETED,
@@ -99,7 +101,7 @@ export class JetStreamUsageExample {
     });
 
     // Some progress
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await this.jetStreamService.publishThreadEvent(threadId, {
       type: ThreadEventType.RUN_PROGRESS,
       threadId,
@@ -112,7 +114,7 @@ export class JetStreamUsageExample {
     });
 
     // Simulate failure
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await this.jetStreamService.publishThreadEvent(threadId, {
       type: ThreadEventType.RUN_FAILED,
       threadId,
@@ -120,7 +122,8 @@ export class JetStreamUsageExample {
       timestamp: Date.now(),
       payload: {
         error: 'Query processing failed: Invalid input format',
-        stackTrace: 'Error: Invalid input format\n    at QueryProcessor.process(query.ts:45)\n    at Agent.run(agent.ts:123)',
+        stackTrace:
+          'Error: Invalid input format\n    at QueryProcessor.process(query.ts:45)\n    at Agent.run(agent.ts:123)',
       },
     });
 
@@ -150,7 +153,7 @@ export class JetStreamUsageExample {
     });
 
     // Some progress
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     await this.jetStreamService.publishThreadEvent(threadId, {
       type: ThreadEventType.RUN_PROGRESS,
       threadId,
@@ -163,7 +166,7 @@ export class JetStreamUsageExample {
     });
 
     // User cancels
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await this.jetStreamService.publishThreadEvent(threadId, {
       type: ThreadEventType.RUN_CANCELLED,
       threadId,
@@ -211,7 +214,7 @@ export class JetStreamUsageExample {
 
     // Progress
     for (let step = 1; step <= 3; step++) {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       await this.jetStreamService.publishThreadEvent(threadId, {
         type: ThreadEventType.RUN_PROGRESS,
         threadId,
@@ -225,7 +228,7 @@ export class JetStreamUsageExample {
     }
 
     // Complete
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await this.jetStreamService.publishThreadEvent(threadId, {
       type: ThreadEventType.RUN_COMPLETED,
       threadId,
@@ -243,9 +246,9 @@ export class JetStreamUsageExample {
 
 /**
  * HTTP API Usage Examples
- * 
+ *
  * You can also use the REST API endpoints to publish events:
- * 
+ *
  * 1. Start a run:
  * POST /jetstream/events/run-started
  * {
@@ -257,7 +260,7 @@ export class JetStreamUsageExample {
  *     "query": "Hello, how are you?"
  *   }
  * }
- * 
+ *
  * 2. Send progress:
  * POST /jetstream/events/run-progress
  * {
@@ -267,7 +270,7 @@ export class JetStreamUsageExample {
  *   "message": "Processing...",
  *   "data": { "step": 2 }
  * }
- * 
+ *
  * 3. Complete run:
  * POST /jetstream/events/run-completed
  * {
@@ -276,13 +279,13 @@ export class JetStreamUsageExample {
  *   "result": { "response": "Hello! I am doing well." },
  *   "executionTime": 5000
  * }
- * 
+ *
  * 4. Monitor active workers:
  * GET /jetstream/workers/active
- * 
+ *
  * 5. Check active locks:
  * GET /jetstream/locks/active
- * 
+ *
  * 6. Health check:
  * GET /jetstream/health
  */

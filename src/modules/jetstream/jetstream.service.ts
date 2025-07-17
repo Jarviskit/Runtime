@@ -1,9 +1,14 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { 
-  connect, 
-  NatsConnection, 
-  JetStreamManager, 
-  JetStreamClient, 
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
+import {
+  connect,
+  NatsConnection,
+  JetStreamManager,
+  JetStreamClient,
   StreamConfig,
   ConsumerConfig,
   JsMsg,
@@ -11,7 +16,7 @@ import {
   DeliverPolicy,
   ReplayPolicy,
 } from 'nats';
-import { ThreadEvent, ThreadEventType } from './interfaces/thread-event.interface';
+import { ThreadEvent } from './interfaces/thread-event.interface';
 
 @Injectable()
 export class JetStreamService implements OnModuleInit, OnModuleDestroy {
@@ -19,7 +24,7 @@ export class JetStreamService implements OnModuleInit, OnModuleDestroy {
   private nc: NatsConnection;
   private jsm: JetStreamManager;
   private js: JetStreamClient;
-  
+
   private readonly STREAM_NAME = 'JARVISKIT_STREAM';
   private readonly THREAD_SUBJECT_PREFIX = 'jarviskit_stream.thread';
 
@@ -79,34 +84,48 @@ export class JetStreamService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async publishThreadEvent(threadId: string, event: ThreadEvent): Promise<void> {
+  async publishThreadEvent(
+    threadId: string,
+    event: ThreadEvent,
+  ): Promise<void> {
     const subject = `${this.THREAD_SUBJECT_PREFIX}.${threadId}`;
     const message = JSON.stringify(event);
 
     try {
-      const ack = await this.js.publish(subject, new TextEncoder().encode(message), {
-        msgID: `${event.runId}-${event.type}-${Date.now()}`,
-      });
-      
-      this.logger.debug(`Published event ${event.type} for thread ${threadId}, sequence: ${ack.seq}`);
+      const ack = await this.js.publish(
+        subject,
+        new TextEncoder().encode(message),
+        {
+          msgID: `${event.runId}-${event.type}-${Date.now()}`,
+        },
+      );
+
+      this.logger.debug(
+        `Published event ${event.type} for thread ${threadId}, sequence: ${ack.seq}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to publish event ${event.type} for thread ${threadId}`, error);
+      this.logger.error(
+        `Failed to publish event ${event.type} for thread ${threadId}`,
+        error,
+      );
       throw error;
     }
   }
 
   async createConsumer(
-    threadId: string, 
-    consumerName: string, 
-    startSequence?: number
+    threadId: string,
+    consumerName: string,
+    startSequence?: number,
   ): Promise<void> {
     const subject = `${this.THREAD_SUBJECT_PREFIX}.${threadId}`;
-    
+
     const consumerConfig: Partial<ConsumerConfig> = {
       name: consumerName,
       filter_subject: subject,
       ack_policy: AckPolicy.Explicit,
-      deliver_policy: startSequence ? DeliverPolicy.ByStartSequence : DeliverPolicy.All,
+      deliver_policy: startSequence
+        ? DeliverPolicy.ByStartSequence
+        : DeliverPolicy.All,
       opt_start_seq: startSequence,
       replay_policy: ReplayPolicy.Instant,
       max_deliver: 3,
@@ -115,7 +134,9 @@ export class JetStreamService implements OnModuleInit, OnModuleDestroy {
 
     try {
       await this.jsm.consumers.add(this.STREAM_NAME, consumerConfig);
-      this.logger.log(`Consumer ${consumerName} created for thread ${threadId}`);
+      this.logger.log(
+        `Consumer ${consumerName} created for thread ${threadId}`,
+      );
     } catch (error) {
       if (error.message.includes('consumer name already in use')) {
         this.logger.log(`Consumer ${consumerName} already exists`);
@@ -128,26 +149,35 @@ export class JetStreamService implements OnModuleInit, OnModuleDestroy {
 
   async subscribe(
     consumerName: string,
-    callback: (event: ThreadEvent, msg: JsMsg) => Promise<void>
+    callback: (event: ThreadEvent, msg: JsMsg) => Promise<void>,
   ): Promise<void> {
     try {
-      const consumer = await this.js.consumers.get(this.STREAM_NAME, consumerName);
+      const consumer = await this.js.consumers.get(
+        this.STREAM_NAME,
+        consumerName,
+      );
       const messages = await consumer.consume();
 
       for await (const msg of messages) {
         try {
           const eventData = JSON.parse(new TextDecoder().decode(msg.data));
           eventData.sequenceId = msg.seq;
-          
+
           await callback(eventData, msg);
           msg.ack();
         } catch (error) {
-          this.logger.error(`Error processing message in consumer ${consumerName}`, error);
+          this.logger.error(
+            `Error processing message in consumer ${consumerName}`,
+            error,
+          );
           msg.nak();
         }
       }
     } catch (error) {
-      this.logger.error(`Failed to subscribe to consumer ${consumerName}`, error);
+      this.logger.error(
+        `Failed to subscribe to consumer ${consumerName}`,
+        error,
+      );
       throw error;
     }
   }
@@ -168,7 +198,7 @@ export class JetStreamService implements OnModuleInit, OnModuleDestroy {
     try {
       const stream = await this.jsm.streams.get(this.STREAM_NAME);
       const messages = await stream.getMessage({ subject });
-      
+
       // This is a simplified version - in reality, you'd need to iterate through all messages
       // For now, we'll return empty array as this is primarily used for debugging
       return events;

@@ -2,7 +2,10 @@ import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
 import { JetStreamService } from './jetstream.service';
 import { WorkerFactory } from './worker-factory.service';
 import { RedisLockService } from './redis-lock.service';
-import { ThreadEvent, ThreadEventType } from './interfaces/thread-event.interface';
+import {
+  ThreadEvent,
+  ThreadEventType,
+} from './interfaces/thread-event.interface';
 
 @Controller('jetstream')
 export class JetStreamController {
@@ -13,22 +16,22 @@ export class JetStreamController {
   ) {}
 
   @Post('events/publish')
-  async publishEvent(@Body() body: {
-    threadId: string;
-    event: ThreadEvent;
-  }) {
+  async publishEvent(@Body() body: { threadId: string; event: ThreadEvent }) {
     await this.jetStreamService.publishThreadEvent(body.threadId, body.event);
     return { success: true, message: 'Event published successfully' };
   }
 
   @Post('events/run-started')
-  async publishRunStarted(@Body() body: {
-    threadId: string;
-    runId: string;
-    userId: string;
-    agentId: string;
-    inputData: any;
-  }) {
+  async publishRunStarted(
+    @Body()
+    body: {
+      threadId: string;
+      runId: string;
+      userId: string;
+      agentId: string;
+      inputData: any;
+    },
+  ) {
     const event: ThreadEvent = {
       type: ThreadEventType.RUN_STARTED,
       threadId: body.threadId,
@@ -42,17 +45,23 @@ export class JetStreamController {
     };
 
     await this.jetStreamService.publishThreadEvent(body.threadId, event);
-    return { success: true, message: 'RUN_STARTED event published successfully' };
+    return {
+      success: true,
+      message: 'RUN_STARTED event published successfully',
+    };
   }
 
   @Post('events/run-progress')
-  async publishRunProgress(@Body() body: {
-    threadId: string;
-    runId: string;
-    progress: number;
-    message: string;
-    data?: any;
-  }) {
+  async publishRunProgress(
+    @Body()
+    body: {
+      threadId: string;
+      runId: string;
+      progress: number;
+      message: string;
+      data?: any;
+    },
+  ) {
     const event: ThreadEvent = {
       type: ThreadEventType.RUN_PROGRESS,
       threadId: body.threadId,
@@ -66,16 +75,22 @@ export class JetStreamController {
     };
 
     await this.jetStreamService.publishThreadEvent(body.threadId, event);
-    return { success: true, message: 'RUN_PROGRESS event published successfully' };
+    return {
+      success: true,
+      message: 'RUN_PROGRESS event published successfully',
+    };
   }
 
   @Post('events/run-completed')
-  async publishRunCompleted(@Body() body: {
-    threadId: string;
-    runId: string;
-    result: any;
-    executionTime: number;
-  }) {
+  async publishRunCompleted(
+    @Body()
+    body: {
+      threadId: string;
+      runId: string;
+      result: any;
+      executionTime: number;
+    },
+  ) {
     const event: ThreadEvent = {
       type: ThreadEventType.RUN_COMPLETED,
       threadId: body.threadId,
@@ -88,16 +103,22 @@ export class JetStreamController {
     };
 
     await this.jetStreamService.publishThreadEvent(body.threadId, event);
-    return { success: true, message: 'RUN_COMPLETED event published successfully' };
+    return {
+      success: true,
+      message: 'RUN_COMPLETED event published successfully',
+    };
   }
 
   @Post('events/run-failed')
-  async publishRunFailed(@Body() body: {
-    threadId: string;
-    runId: string;
-    error: string;
-    stackTrace?: string;
-  }) {
+  async publishRunFailed(
+    @Body()
+    body: {
+      threadId: string;
+      runId: string;
+      error: string;
+      stackTrace?: string;
+    },
+  ) {
     const event: ThreadEvent = {
       type: ThreadEventType.RUN_FAILED,
       threadId: body.threadId,
@@ -110,15 +131,16 @@ export class JetStreamController {
     };
 
     await this.jetStreamService.publishThreadEvent(body.threadId, event);
-    return { success: true, message: 'RUN_FAILED event published successfully' };
+    return {
+      success: true,
+      message: 'RUN_FAILED event published successfully',
+    };
   }
 
   @Post('events/run-cancelled')
-  async publishRunCancelled(@Body() body: {
-    threadId: string;
-    runId: string;
-    reason: string;
-  }) {
+  async publishRunCancelled(
+    @Body() body: { threadId: string; runId: string; reason: string },
+  ) {
     const event: ThreadEvent = {
       type: ThreadEventType.RUN_CANCELLED,
       threadId: body.threadId,
@@ -130,7 +152,10 @@ export class JetStreamController {
     };
 
     await this.jetStreamService.publishThreadEvent(body.threadId, event);
-    return { success: true, message: 'RUN_CANCELLED event published successfully' };
+    return {
+      success: true,
+      message: 'RUN_CANCELLED event published successfully',
+    };
   }
 
   @Get('workers/active')
@@ -146,7 +171,9 @@ export class JetStreamController {
     const stopped = await this.workerFactory.forceStopWorker(runId);
     return {
       success: stopped,
-      message: stopped ? 'Worker stopped successfully' : 'Worker not found or already stopped',
+      message: stopped
+        ? 'Worker stopped successfully'
+        : 'Worker not found or already stopped',
     };
   }
 
@@ -180,7 +207,7 @@ export class JetStreamController {
     try {
       const connection = this.jetStreamService.getConnection();
       const isConnected = !connection.isClosed();
-      
+
       return {
         status: isConnected ? 'healthy' : 'unhealthy',
         nats: {
@@ -204,7 +231,7 @@ export class JetStreamController {
     try {
       const jsm = this.jetStreamService.getJetStreamManager();
       const stream = await jsm.streams.info('JARVISKIT_STREAM');
-      
+
       return {
         stream: stream,
         consumers: await jsm.consumers.list('JARVISKIT_STREAM').next(),

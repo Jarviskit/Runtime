@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package chat;
+
+// Định nghĩa dịch vụ Chat
+service ChatService {
+  // RPC cho bidirectional streaming
+  rpc ChatStream (stream ChatMessage) returns (stream ChatMessage);
+}
+
+// Định nghĩa message ChatMessage
+message ChatMessage {
+  string user = 1; // Tên người gửi
+  string content = 2; // Nội dung tin nhắn
+  int64 timestamp = 3; // Thời gian gửi
+} 

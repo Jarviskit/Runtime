@@ -18,26 +18,34 @@ export class RedisLockService {
    * @param ttl - Time to live in seconds (default: 300)
    * @returns Promise<boolean> - true if lock acquired, false otherwise
    */
-  async acquireLock(runId: string, instanceId: string, ttl: number = this.DEFAULT_TTL): Promise<boolean> {
+  async acquireLock(
+    runId: string,
+    instanceId: string,
+    ttl: number = this.DEFAULT_TTL,
+  ): Promise<boolean> {
     const lockKey = this.getLockKey(runId);
-    
+
     try {
       const result = await this.redis.set(
         lockKey,
         instanceId,
         'EX', // Set expiration
         ttl,
-        'NX' // Only set if key doesn't exist
+        'NX', // Only set if key doesn't exist
       );
 
       const acquired = result === 'OK';
-      
+
       if (acquired) {
-        this.logger.log(`Lock acquired for run ${runId} by instance ${instanceId}`);
+        this.logger.log(
+          `Lock acquired for run ${runId} by instance ${instanceId}`,
+        );
         // Start auto-extend mechanism
         this.startAutoExtend(runId, instanceId, ttl);
       } else {
-        this.logger.warn(`Failed to acquire lock for run ${runId} by instance ${instanceId}`);
+        this.logger.warn(
+          `Failed to acquire lock for run ${runId} by instance ${instanceId}`,
+        );
       }
 
       return acquired;
@@ -55,7 +63,7 @@ export class RedisLockService {
    */
   async releaseLock(runId: string, instanceId: string): Promise<boolean> {
     const lockKey = this.getLockKey(runId);
-    
+
     // Lua script to ensure we only delete the lock if we own it
     const luaScript = `
       if redis.call("get", KEYS[1]) == ARGV[1] then
@@ -68,12 +76,16 @@ export class RedisLockService {
     try {
       const result = await this.redis.eval(luaScript, 1, lockKey, instanceId);
       const released = result === 1;
-      
+
       if (released) {
-        this.logger.log(`Lock released for run ${runId} by instance ${instanceId}`);
+        this.logger.log(
+          `Lock released for run ${runId} by instance ${instanceId}`,
+        );
         this.stopAutoExtend(runId);
       } else {
-        this.logger.warn(`Failed to release lock for run ${runId} by instance ${instanceId} (not owner or already released)`);
+        this.logger.warn(
+          `Failed to release lock for run ${runId} by instance ${instanceId} (not owner or already released)`,
+        );
       }
 
       return released;
@@ -91,7 +103,7 @@ export class RedisLockService {
    */
   async isLockHeld(runId: string, instanceId: string): Promise<boolean> {
     const lockKey = this.getLockKey(runId);
-    
+
     try {
       const lockOwner = await this.redis.get(lockKey);
       return lockOwner === instanceId;
@@ -108,7 +120,7 @@ export class RedisLockService {
    */
   async getLockOwner(runId: string): Promise<string | null> {
     const lockKey = this.getLockKey(runId);
-    
+
     try {
       return await this.redis.get(lockKey);
     } catch (error) {
@@ -124,9 +136,13 @@ export class RedisLockService {
    * @param ttl - New TTL in seconds
    * @returns Promise<boolean> - true if lock extended, false otherwise
    */
-  async extendLock(runId: string, instanceId: string, ttl: number = this.DEFAULT_TTL): Promise<boolean> {
+  async extendLock(
+    runId: string,
+    instanceId: string,
+    ttl: number = this.DEFAULT_TTL,
+  ): Promise<boolean> {
     const lockKey = this.getLockKey(runId);
-    
+
     // Lua script to extend TTL only if we own the lock
     const luaScript = `
       if redis.call("get", KEYS[1]) == ARGV[1] then
@@ -137,13 +153,23 @@ export class RedisLockService {
     `;
 
     try {
-      const result = await this.redis.eval(luaScript, 1, lockKey, instanceId, ttl);
+      const result = await this.redis.eval(
+        luaScript,
+        1,
+        lockKey,
+        instanceId,
+        ttl,
+      );
       const extended = result === 1;
-      
+
       if (extended) {
-        this.logger.debug(`Lock extended for run ${runId} by instance ${instanceId}`);
+        this.logger.debug(
+          `Lock extended for run ${runId} by instance ${instanceId}`,
+        );
       } else {
-        this.logger.warn(`Failed to extend lock for run ${runId} by instance ${instanceId} (not owner)`);
+        this.logger.warn(
+          `Failed to extend lock for run ${runId} by instance ${instanceId} (not owner)`,
+        );
       }
 
       return extended;
@@ -160,10 +186,14 @@ export class RedisLockService {
   // Auto-extend mechanism to prevent locks from expiring during long-running operations
   private autoExtendIntervals = new Map<string, NodeJS.Timeout>();
 
-  private startAutoExtend(runId: string, instanceId: string, ttl: number): void {
+  private startAutoExtend(
+    runId: string,
+    instanceId: string,
+    ttl: number,
+  ): void {
     // Clear any existing interval
     this.stopAutoExtend(runId);
-    
+
     const interval = setInterval(async () => {
       const extended = await this.extendLock(runId, instanceId, ttl);
       if (!extended) {
@@ -187,7 +217,9 @@ export class RedisLockService {
    * Get all active locks (for debugging/monitoring)
    * @returns Promise<{runId: string, owner: string, ttl: number}[]>
    */
-  async getActiveLocks(): Promise<{runId: string, owner: string, ttl: number}[]> {
+  async getActiveLocks(): Promise<
+    { runId: string; owner: string; ttl: number }[]
+  > {
     try {
       const keys = await this.redis.keys(`${this.LOCK_PREFIX}*`);
       const locks = [];
@@ -195,12 +227,12 @@ export class RedisLockService {
       for (const key of keys) {
         const owner = await this.redis.get(key);
         const ttl = await this.redis.ttl(key);
-        
+
         if (owner && ttl > 0) {
           locks.push({
             runId: key.replace(this.LOCK_PREFIX, ''),
             owner,
-            ttl
+            ttl,
           });
         }
       }
@@ -225,11 +257,11 @@ export class RedisLockService {
 
       const result = await this.redis.del(...keys);
       this.logger.warn(`Force released ${result} locks`);
-      
+
       // Clear all auto-extend intervals
       this.autoExtendIntervals.forEach((interval) => clearInterval(interval));
       this.autoExtendIntervals.clear();
-      
+
       return result;
     } catch (error) {
       this.logger.error('Error force releasing locks', error);

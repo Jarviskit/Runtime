@@ -21,6 +21,8 @@
   },
   "dependencies": {
     "@ag-ui/core": "^0.0.30",
+    "@grpc/grpc-js": "^1.13.4",
+    "@grpc/proto-loader": "^0.7.15",
     "@liaoliaots/nestjs-redis": "^10.0.0",
     "@nestjs/axios": "^4.0.0",
     "@nestjs/common": "^10.0.0",
