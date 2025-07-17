@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  nats:
+    image: nats:2.10-alpine
+    container_name: jarviskit-nats
+    command: [
+      "--jetstream",
+      "--store_dir=/data",
+      "--max_file_store=10GB",
+      "--max_mem_store=1GB"
+    ]
+    ports:
+      - "4222:4222"
+      - "8222:8222"  # HTTP monitoring
+      - "6222:6222"  # Routing port for clustering
+    volumes:
+      - nats_data:/data
+    environment:
+      - NATS_LOG_LEVEL=info
+    healthcheck:
+      test: ["CMD", "nats", "server", "check", "--server", "nats://localhost:4222"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: jarviskit-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  nats-cli:
+    image: natsio/nats-box:latest
+    container_name: jarviskit-nats-cli
+    depends_on:
+      - nats
+    volumes:
+      - ./scripts:/scripts
+    environment:
+      - NATS_URL=nats://nats:4222
+    command: tail -f /dev/null
+    restart: unless-stopped
+
+volumes:
+  nats_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  default:
+    name: jarviskit-network

@@ -11,6 +11,7 @@ import { RabbitMQModule } from './modules/rabbitmq/rabbitmq.module';
 import { RedisModule } from '@liaoliaots/nestjs-redis';
 import { AuthModule } from './modules/auth/auth.module';
 import { AgentModule } from './modules/agent/agent.module';
+import { JetStreamModule } from './modules/jetstream/jetstream.module';
 import { ApiLoggerMiddleware } from './shared/api-logger';
 
 @Module({
@@ -35,6 +36,7 @@ import { ApiLoggerMiddleware } from './shared/api-logger';
     ThreadModule,
     SocketModule,
     AgentModule,
+    JetStreamModule,
   ],
   controllers: [AppController],
   providers: [AppService],
