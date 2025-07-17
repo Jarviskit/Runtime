@@ -14,8 +14,7 @@ import { SocketService } from './socket.service';
 import { AGUIEvent } from './interfaces';
 import { Message } from 'src/entities/message.entity';
 import { SendToolResponseDto } from '../thread/dtos/send-tool-response.dto';
-
-
+import { GrpcService } from '../grpc/grpc.service';
 
 @WebSocketGateway({
   cors: { origin: '*' },
@@ -29,8 +28,10 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   logger = new Logger('SocketGateway');
 
-  constructor(private socketService: SocketService) {}
-
+  constructor(
+    private socketService: SocketService,
+    private grpcService: GrpcService
+  ) {}
 
   handleConnection(client: Socket) {
     const token = client.handshake.auth?.token || client.handshake.headers['authorization'];
@@ -83,16 +84,16 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`thread:${data.threadId}`).emit('message', data);
   }
   
-
   /**
-   * Agent events
-   * TODO: Add auth logic for agent here
+   * Agent events - DEPRECATED: Use gRPC instead
+   * Keeping for backward compatibility
    */
   @SubscribeMessage('agui_event')
   handleAGUIEvent(
     @MessageBody() data: AGUIEvent,
     @ConnectedSocket() client: Socket
   ) {
+    this.logger.warn('DEPRECATED: agui_event via socket.io. Please use gRPC instead.');
     try {
       this.socketService.handleAGUIEvent(data, this.server);
     } catch (error) {
@@ -105,11 +106,11 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { name: string; api_key: string },
     @ConnectedSocket() client: Socket
   ) {
+    this.logger.warn('DEPRECATED: join_agent_space via socket.io. Please use gRPC instead.');
     this.logger.warn(`[${client.id}] joined agent space: ${data.name} | API Key: ${data.api_key}`);
 
     client.join(`agent_space:${data.name}`);
   }
-
 
   // Local events
   @OnEvent('user.send_message')
@@ -124,6 +125,26 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @OnEvent('client_response')
   handleClientResponse(data: SendToolResponseDto) {
+    // Send via socket.io for backward compatibility
     this.server.to(`agent_space:${data.namespace}`).emit('client_response', data);
+    
+    // Send via gRPC stream
+    this.grpcService.sendClientResponse(data.namespace, {
+      type: 'client_response',
+      threadId: data.threadId || '',
+      sessionId: data.sessionId || '',
+      messageId: data.messageId || '',
+      toolCallId: data.toolCallId || '',
+      response: JSON.stringify(data.response || {}),
+      error: data.error || '',
+      metadata: {},
+      timestamp: Date.now()
+    });
+  }
+
+  // Handle gRPC events and emit to websocket clients
+  @OnEvent('agui_event')
+  handleGrpcAGUIEvent(data: { threadId: string; event: any }) {
+    this.server.to(`thread:${data.threadId}`).emit('agui_event', data.event);
   }
 }

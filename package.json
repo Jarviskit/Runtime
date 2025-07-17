@@ -17,10 +17,14 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "grpc:client": "ts-node examples/grpc-client.ts",
+    "proto:generate": "npx grpc_tools_node_protoc --plugin=protoc-gen-ts_proto=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=./src/generated --proto_path=./proto agent-runtime.proto --ts_proto_opt=nestJs=true,addGrpcMetadata=true,addNestjsRestParameter=true,returnObservable=false,useOptionals=messages"
   },
   "dependencies": {
     "@ag-ui/core": "^0.0.30",
+    "@grpc/grpc-js": "^1.12.5",
+    "@grpc/proto-loader": "^0.7.16",
     "@liaoliaots/nestjs-redis": "^10.0.0",
     "@nestjs/axios": "^4.0.0",
     "@nestjs/common": "^10.0.0",
@@ -57,6 +61,7 @@
     "@swc/core": "^1.11.31",
     "@types/amqplib": "^0.10.7",
     "@types/express": "^4.17.17",
+    "@types/google-protobuf": "^3.15.13",
     "@types/jest": "^29.5.2",
     "@types/node": "^20.3.1",
     "@types/supertest": "^6.0.0",
@@ -65,12 +70,14 @@
     "eslint": "^8.42.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.0",
+    "grpc-tools": "^1.12.5",
     "jest": "^29.5.0",
     "prettier": "^3.0.0",
     "source-map-support": "^0.5.21",
     "ts-jest": "^29.1.0",
     "ts-loader": "^9.4.3",
     "ts-node": "^10.9.1",
+    "ts-proto": "^2.7.5",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.1.3"
   },

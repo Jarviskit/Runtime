@@ -12,6 +12,7 @@ import { RedisModule } from '@liaoliaots/nestjs-redis';
 import { AuthModule } from './modules/auth/auth.module';
 import { AgentModule } from './modules/agent/agent.module';
 import { ApiLoggerMiddleware } from './shared/api-logger';
+import { GrpcModule } from './modules/grpc/grpc.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { ApiLoggerMiddleware } from './shared/api-logger';
     ThreadModule,
     SocketModule,
     AgentModule,
+    GrpcModule,
   ],
   controllers: [AppController],
   providers: [AppService],

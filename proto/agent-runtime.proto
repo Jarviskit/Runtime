@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package agent_runtime;
+
+// Agent Runtime Service
+service AgentRuntimeService {
+  // Send AGUI event from agent to runtime
+  rpc SendAGUIEvent(AGUIEventRequest) returns (AGUIEventResponse);
+  
+  // Join agent space for receiving responses
+  rpc JoinAgentSpace(JoinAgentSpaceRequest) returns (stream ClientResponse);
+  
+  // Get thread messages for agent
+  rpc GetThreadMessages(GetThreadMessagesRequest) returns (GetThreadMessagesResponse);
+}
+
+// AGUI Event Request
+message AGUIEventRequest {
+  string thread_id = 1;
+  string session_id = 2;
+  BaseEvent event = 3;
+  map<string, string> metadata = 4;
+  int64 order = 5;
+}
+
+// AGUI Event Response
+message AGUIEventResponse {
+  bool success = 1;
+  string message = 2;
+  string error = 3;
+}
+
+// Base Event (matches @ag-ui/core BaseEvent)
+message BaseEvent {
+  string type = 1;
+  string message_id = 2;
+  string delta = 3;
+  string content = 4;
+  repeated ToolCall tool_calls = 5;
+  map<string, string> metadata = 6;
+  int64 timestamp = 7;
+}
+
+// Tool Call
+message ToolCall {
+  string id = 1;
+  string name = 2;
+  string arguments = 3;
+  string result = 4;
+  string status = 5;
+  string error = 6;
+}
+
+// Join Agent Space Request
+message JoinAgentSpaceRequest {
+  string name = 1;
+  string api_key = 2;
+}
+
+// Client Response (for streaming)
+message ClientResponse {
+  string type = 1;
+  string thread_id = 2;
+  string session_id = 3;
+  string message_id = 4;
+  string tool_call_id = 5;
+  string response = 6;
+  string error = 7;
+  map<string, string> metadata = 8;
+  int64 timestamp = 9;
+}
+
+// Get Thread Messages Request
+message GetThreadMessagesRequest {
+  string thread_id = 1;
+  int32 page = 2;
+  int32 limit = 3;
+}
+
+// Get Thread Messages Response
+message GetThreadMessagesResponse {
+  repeated Message messages = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 limit = 4;
+}
+
+// Message
+message Message {
+  string id = 1;
+  string thread_id = 2;
+  string session_id = 3;
+  string content = 4;
+  string role = 5;
+  repeated ToolCall tool_calls = 6;
+  string status = 7;
+  int64 created_at = 8;
+  int64 updated_at = 9;
+}
