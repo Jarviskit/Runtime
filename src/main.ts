@@ -1,48 +1,71 @@
+import { serve } from '@hono/node-server';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { logger } from 'hono/logger';
+import { prettyJSON } from 'hono/pretty-json';
+import { swaggerUI } from '@hono/swagger-ui';
 import 'reflect-metadata';
-import { NestFactory, Reflector } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { NestExpressApplication } from '@nestjs/platform-express';
-import { UnprocessableEntityException, ValidationPipe } from '@nestjs/common';
-import { apiReference } from '@scalar/nestjs-api-reference';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { HttpExceptionFilter } from './shared/exception-filters/http-exception.filter';
-import { SerializeInterceptor } from './shared/interceptors/serialize.interceptor';
+import { config } from './config/index.js';
+import { initializeDatabase } from './config/database.js';
+import { initializeRedis } from './config/redis.js';
+import { initializeRabbitMQ } from './config/rabbitmq.js';
+import { initializeWebSocket } from './transports/websocket.js';
+import { authRoutes } from './modules/auth/auth.routes.js';
+import { threadRoutes } from './modules/thread/thread.routes.js';
+import { agentRoutes } from './modules/agent/agent.routes.js';
 
+const app = new Hono();
+
+// Middleware
+app.use('*', cors());
+app.use('*', logger());
+app.use('*', prettyJSON());
+
+// Health check
+app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
+
+// API Documentation
+app.get('/docs', swaggerUI({ url: '/api/openapi.json' }));
+
+// Routes
+app.route('/api/auth', authRoutes);
+app.route('/api/threads', threadRoutes);
+app.route('/api/agents', agentRoutes);
+
+// Initialize services
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  app.useBodyParser('json', { limit: '10mb' });
-
-  app.useGlobalInterceptors(new SerializeInterceptor(app.get(Reflector)));
-
-  app.useGlobalFilters(new HttpExceptionFilter());
-
-  app.useGlobalPipes(
-    new ValidationPipe({
-      transform: true,
-      whitelist: true,
-      forbidNonWhitelisted: false,
-      exceptionFactory(errors) {
-        return new UnprocessableEntityException({
-          success: false,
-          errors: errors,
-        });
-      },
-    }),
-  );
-
-  const config = new DocumentBuilder()
-    .setTitle('Agent Runtime APIs')
-    .addServer(`http://localhost:${process.env.PORT || 6789}/`, "Local")
-    .setDescription('Agent Runtime')
-    .setVersion('1.0.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  
-  app.enableCors({ origin: true, credentials: true });
-  app.use('/api', apiReference({ content: document, withFastify: false }));
-
-  await app.listen(process.env.PORT || 6789);
+  try {
+    console.log('🚀 Starting JarvisKit Runtime...');
+    
+    // Initialize database
+    await initializeDatabase();
+    console.log('✅ Database connected');
+    
+    // Initialize Redis
+    await initializeRedis();
+    console.log('✅ Redis connected');
+    
+    // Initialize RabbitMQ
+    await initializeRabbitMQ();
+    console.log('✅ RabbitMQ connected');
+    
+    // Start HTTP server
+    const server = serve({
+      fetch: app.fetch,
+      port: config.port,
+    });
+    
+    // Initialize WebSocket server
+    await initializeWebSocket(server);
+    console.log('✅ WebSocket server started');
+    
+    console.log(`🎉 Server running on http://localhost:${config.port}`);
+    console.log(`📚 API Documentation available at http://localhost:${config.port}/docs`);
+    
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
 }
 
 bootstrap();

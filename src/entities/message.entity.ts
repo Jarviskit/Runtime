@@ -1,5 +1,5 @@
 import { Column, Entity, ManyToOne, PrimaryColumn } from "typeorm";
-import { Thread } from "./thread.entity";
+import { ThreadEntity } from "./thread.entity.js";
 
 export enum ToolStatus {
   Calling = 'Calling',
@@ -12,13 +12,13 @@ export enum ToolStatus {
   name: 'messages',
   synchronize: true
 })
-export class Message {
+export class MessageEntity {
   @PrimaryColumn({ type: 'varchar', length: 36, unique: true })
   id: string;
 
   @Column({ type: 'varchar', length: 36, nullable: false })
-  @ManyToOne(() => Thread, (thread) => thread.id, { nullable: false })
-  thread: string | Thread;
+  @ManyToOne(() => ThreadEntity, (thread) => thread.id, { nullable: false })
+  thread: string | ThreadEntity;
 
   @Column({ type: 'text', nullable: false })
   content: string;

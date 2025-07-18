@@ -1,65 +1,165 @@
-import { HttpService } from "@nestjs/axios";
-import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { catchError, firstValueFrom } from "rxjs";
-import * as jwt from 'jsonwebtoken';
-import { AxiosError } from "axios";
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import { AppDataSource } from '../../config/database.js';
+import { UserEntity } from '../../entities/user.entity.js';
+import { config } from '../../config/index.js';
 
+export interface LoginData {
+  email: string;
+  password: string;
+}
 
+export interface RegisterData {
+  email: string;
+  password: string;
+  name?: string;
+}
 
-@Injectable()
+export interface AuthResult {
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+    avatar?: string;
+  };
+  token: string;
+  expiresIn: string;
+}
+
 export class AuthService {
-  constructor(private readonly httpService: HttpService) {}
+  private userRepository = AppDataSource.getRepository(UserEntity);
 
-  async exchangeToken(token: string) {
-    const { data } = await firstValueFrom(
-      this.httpService.get<any>(
-        process.env.JARVIS_KIT_REMOTE_AUTH_API_ENDPOINT,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      ).pipe(
-        catchError((error: AxiosError) => {
-          throw new UnauthorizedException('Invalid token');
-        }),
-      ),
-    );
+  async login(email: string, password: string): Promise<AuthResult> {
+    const user = await this.userRepository.findOne({
+      where: { email, isActive: true },
+    });
 
-    return this.generateToken(data, '7d');
+    if (!user) {
+      throw new Error('Invalid credentials');
+    }
+
+    if (!user.passwordHash) {
+      throw new Error('Password not set for this user');
+    }
+
+    const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+    if (!isValidPassword) {
+      throw new Error('Invalid credentials');
+    }
+
+    const token = this.generateToken(user);
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+      },
+      token,
+      expiresIn: config.jwt.expiresIn,
+    };
   }
 
-  async verifyToken(token: string) {
+  async register(userData: RegisterData): Promise<AuthResult> {
+    // Check if user already exists
+    const existingUser = await this.userRepository.findOne({
+      where: { email: userData.email },
+    });
+
+    if (existingUser) {
+      throw new Error('User already exists');
+    }
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(userData.password, 10);
+
+    // Create user
+    const user = this.userRepository.create({
+      id: this.generateId(),
+      email: userData.email,
+      name: userData.name,
+      passwordHash,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await this.userRepository.save(user);
+
+    const token = this.generateToken(user);
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+      },
+      token,
+      expiresIn: config.jwt.expiresIn,
+    };
+  }
+
+  async verifyToken(token: string): Promise<{ user: any }> {
     try {
-      return jwt.verify(token, process.env.JARVIS_KIT_JWT_SECRET);
+      const decoded = jwt.verify(token, config.jwt.secret) as any;
+      
+      const user = await this.userRepository.findOne({
+        where: { id: decoded.userId, isActive: true },
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          avatar: user.avatar,
+        },
+      };
     } catch (error) {
-      throw new UnauthorizedException('Invalid token');
+      throw new Error('Invalid token');
     }
   }
 
-  /***
-   * This is a placeholder for the actual revoke token logic
-   * @param sourceToken - The source token to revoke all the exchanged tokens of the runtime
-   * @returns true if the token is revoked, false otherwise
-   * TODO: Implement the actual revoke token logic
-   **/
-  async revokeToken(sourceToken: string) {
-    return true;
+  async refreshToken(token: string): Promise<AuthResult> {
+    const { user } = await this.verifyToken(token);
+    
+    const userEntity = await this.userRepository.findOne({
+      where: { id: user.id },
+    });
+
+    if (!userEntity) {
+      throw new Error('User not found');
+    }
+
+    const newToken = this.generateToken(userEntity);
+
+    return {
+      user,
+      token: newToken,
+      expiresIn: config.jwt.expiresIn,
+    };
   }
 
-  /***
-   * This is a placeholder for the actual refresh token logic
-   * @param token - The token to refresh
-   * @returns the new token
-   * TODO: Implement the actual refresh token logic
-   **/
-  async refreshToken(token: string) {
-    return "new_token";
+  private generateToken(user: UserEntity): string {
+    return jwt.sign(
+      {
+        userId: user.id,
+        email: user.email,
+      },
+      config.jwt.secret,
+      {
+        expiresIn: config.jwt.expiresIn,
+      }
+    );
   }
 
-
-  async generateToken(payload: any, expiresIn: string) {
-    return jwt.sign(payload, process.env.JARVIS_KIT_JWT_SECRET, { expiresIn });
+  private generateId(): string {
+    return 'user_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
   }
 }
