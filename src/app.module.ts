@@ -24,7 +24,7 @@ import { ApiLoggerMiddleware } from './shared/api-logger';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => configService.get('redis'),
       inject: [ConfigService],
-    })  ,
+    }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => configService.get('database'),

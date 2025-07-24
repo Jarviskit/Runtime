@@ -1,16 +1,16 @@
-import { Column, Entity, ManyToOne, PrimaryColumn } from "typeorm";
-import { Thread } from "./thread.entity";
+import { Column, Entity, ManyToOne, PrimaryColumn } from 'typeorm';
+import { Thread } from './thread.entity';
 
 export enum ToolStatus {
   Calling = 'Calling',
   Executing = 'Executing',
   WaitingForClientResponse = 'WaitingForClientResponse',
-  Completed = 'Completed'
+  Completed = 'Completed',
 }
 
 @Entity({
   name: 'messages',
-  synchronize: true
+  synchronize: true,
 })
 export class Message {
   @PrimaryColumn({ type: 'varchar', length: 36, unique: true })
@@ -47,9 +47,17 @@ export class Message {
   @Column({ type: 'json', nullable: true })
   metadata: Record<string, any>;
 
-  @Column({ type: 'timestamp', nullable: false, default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    type: 'timestamp',
+    nullable: false,
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   createdAt: Date;
 
-  @Column({ type: 'timestamp', nullable: false, default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    type: 'timestamp',
+    nullable: false,
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   updatedAt: Date;
 }

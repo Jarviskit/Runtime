@@ -1,5 +1,5 @@
-import { RedisModuleOptions } from "@liaoliaots/nestjs-redis";
-import { TypeOrmModuleOptions } from "@nestjs/typeorm";
+import { RedisModuleOptions } from '@liaoliaots/nestjs-redis';
+import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 export default () => ({
   port: parseInt(process.env.PORT, 10) || 6789,
